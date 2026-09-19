@@ -1,0 +1,14 @@
+{
+  "name": "career-form-autofill-mvp",
+  "version": "0.5.0",
+  "private": true,
+  "description": "就活・留学申込フォーム向けのローカル完結Chrome拡張MVP",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:local": "node --test tests/core.test.js tests/background.test.js",
+    "check": "node --check autofill-core.js && node --check content-script.js && node --check background.js && node --check options.js && node --check popup.js"
+  },
+  "devDependencies": {
+    "happy-dom": "^18.0.1"
+  }
+}

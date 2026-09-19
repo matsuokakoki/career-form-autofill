@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>プロフィール設定 | Career Form Autofill</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">CAREER FORM AUTOFILL</p>
+        <h1>プロフィール設定</h1>
+        <p>入力内容は、このChromeプロファイルの拡張機能用領域にのみ保存されます。</p>
+      </header>
+
+      <form id="profile-form">
+        <section>
+          <h2>氏名</h2>
+          <div class="grid two">
+            <label>姓（漢字）<input name="lastNameKanji" autocomplete="family-name" /></label>
+            <label>名（漢字）<input name="firstNameKanji" autocomplete="given-name" /></label>
+            <label>氏名が1欄の場合（任意）<input name="fullNameKanji" placeholder="空欄なら姓＋空白＋名" /></label>
+            <label>フリガナが1欄の場合（任意）<input name="fullNameKana" placeholder="空欄ならセイ＋空白＋メイ" /></label>
+            <label>姓（全角カナ）<input name="lastNameKana" /></label>
+            <label>名（全角カナ）<input name="firstNameKana" /></label>
+            <label>姓（半角カナ）<input name="lastNameHalfKana" /></label>
+            <label>名（半角カナ）<input name="firstNameHalfKana" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>連絡先</h2>
+          <div class="grid two">
+            <label>メールアドレス<input name="email" type="email" autocomplete="email" /></label>
+            <label>メールアドレス2<input name="email2" type="email" /></label>
+            <label>電話番号<input name="phone" type="tel" placeholder="090-1234-5678" /></label>
+            <label>郵便番号<input name="postalCode" inputmode="numeric" placeholder="123-4567" /></label>
+          </div>
+          <div class="grid">
+            <label>都道府県<input name="prefecture" autocomplete="address-level1" /></label>
+            <label>市区町村<input name="city" autocomplete="address-level2" /></label>
+            <label>町名・番地<input name="addressLine1" autocomplete="address-line1" /></label>
+            <label>建物名・部屋番号<input name="addressLine2" autocomplete="address-line2" /></label>
+            <label>住所が1欄の場合（任意）<input name="fullAddress" placeholder="空欄なら上記住所を結合" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>生年月日・本人情報</h2>
+          <div class="grid four">
+            <label>生年<input name="birthYear" inputmode="numeric" placeholder="2004" /></label>
+            <label>月<input name="birthMonth" inputmode="numeric" placeholder="4" /></label>
+            <label>日<input name="birthDay" inputmode="numeric" placeholder="1" /></label>
+            <label>性別（任意）<select name="gender"><option value="">未設定</option><option>男性</option><option>女性</option><option>その他</option><option>回答しない</option></select></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>保護者</h2>
+          <div class="grid two">
+            <label>保護者氏名<input name="parentName" /></label>
+            <label>本人との続柄<input name="relationship" placeholder="父、母など" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>学歴</h2>
+          <div class="grid">
+            <label>大学名<input name="university" /></label>
+            <div class="grid two">
+              <label>大学区分（任意）<input name="universityType" placeholder="例: 国立" /></label>
+              <label>大学名の頭文字（任意）<input name="universityInitial" placeholder="例: な" maxlength="2" /></label>
+            </div>
+            <label>学部<input name="faculty" /></label>
+            <label>学科・専攻<input name="department" /></label>
+          </div>
+          <div class="grid four">
+            <label>入学年<input name="enrollmentYear" inputmode="numeric" /></label>
+            <label>入学月<input name="enrollmentMonth" inputmode="numeric" /></label>
+            <label>卒業（予定）年<input name="graduationYear" inputmode="numeric" /></label>
+            <label>卒業（予定）月<input name="graduationMonth" inputmode="numeric" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>English profile</h2>
+          <p>ポップアップで <strong>English</strong> を選んだときだけ使う値です。メール・電話・生年月日は日本語プロフィールと共通です。</p>
+          <div class="grid two">
+            <label>Last / family name<input name="lastNameLatin" autocomplete="family-name" /></label>
+            <label>First / given name<input name="firstNameLatin" autocomplete="given-name" /></label>
+            <label>Full name (optional)<input name="fullNameLatin" autocomplete="name" /></label>
+            <label>Street address<input name="addressLine1English" autocomplete="address-line1" /></label>
+            <label>Apartment / unit<input name="addressLine2English" autocomplete="address-line2" /></label>
+            <label>City<input name="cityEnglish" autocomplete="address-level2" /></label>
+            <label>State / province<input name="stateProvince" autocomplete="address-level1" /></label>
+            <label>Full address (optional)<input name="fullAddressEnglish" autocomplete="street-address" /></label>
+            <label>University / school<input name="universityEnglish" /></label>
+            <label>Faculty / college<input name="facultyEnglish" /></label>
+            <label>Department / major<input name="departmentEnglish" /></label>
+          </div>
+        </section>
+
+        <section>
+          <h2>Jev（任意・実験的）</h2>
+          <p>通常ルールで<strong>未判定</strong>だった設問だけを TypeSafe Jev に送ります。プロフィールの値は送信しません。APIキーはこの実験用拡張機能の保存領域へ平文で保存されます。</p>
+          <label class="toggle"><input id="jev-enabled" type="checkbox" /> Jev を使う（ローカルLLMより優先）</label>
+          <label>Jev API key<input id="jev-api-key" type="password" autocomplete="off" placeholder="設定しないとJevは実行されません" /></label>
+          <p>Jevは確率 85%・confidence 0.75 以上の回答だけを候補に加えます。それ以外は未入力のままです。</p>
+        </section>
+
+        <section>
+          <h2>ローカルLLM（任意・実験的）</h2>
+          <p>曖昧な設問だけをローカルで再判定します。プロフィールの値は送らず、ラベル・HTML属性・周辺の設問文だけを送ります。</p>
+          <label class="toggle"><input id="local-llm-enabled" type="checkbox" /> Ollamaなど、PC上で動くLLMを使う</label>
+          <div class="grid two">
+            <label>API URL<input id="local-llm-endpoint" value="http://127.0.0.1:11434/api/chat" inputmode="url" /></label>
+            <label>モデル名<input id="local-llm-model" value="qwen2.5:3b" placeholder="例: qwen2.5:3b" /></label>
+          </div>
+          <p>対応するのはローカルの <code>http://localhost</code> / <code>127.0.0.1</code> のみです。Jevとは別機能です。</p>
+        </section>
+
+        <div class="actions">
+          <button type="submit">プロフィールを保存</button>
+          <span id="status" role="status"></span>
+        </div>
+      </form>
+
+      <aside>
+        <strong>安全上の注意</strong>
+        <p>ブラウザ内保存は暗号化を保証しません。共用PCでは使用せず、端末のログイン・ディスク暗号化を有効にしてください。</p>
+      </aside>
+    </main>
+    <script src="autofill-core.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

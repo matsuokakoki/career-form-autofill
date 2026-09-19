@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Career Form Autofill</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">CAREER FORM AUTOFILL</p>
+          <h1>入力前プレビュー</h1>
+        </div>
+        <button id="open-options" class="icon-button" type="button" title="プロフィール設定">設定</button>
+      </header>
+
+      <section class="notice">
+        <strong>この拡張機能は送信しません。</strong>
+        <span>反映後、必ずフォーム全体を確認してください。</span>
+      </section>
+
+      <button id="scan" class="primary" type="button">現在のフォームを解析</button>
+      <label class="form-language">フォーム言語
+        <select id="form-language"><option value="ja">日本語</option><option value="en">English</option></select>
+      </label>
+      <p id="status" class="status" role="status">設定画面でプロフィールを保存してから解析してください。</p>
+
+      <section id="preview" class="preview" hidden>
+        <div class="preview-heading">
+          <h2>入力予定</h2>
+          <label><input id="toggle-all" type="checkbox" checked /> すべて</label>
+        </div>
+        <div id="matches" class="matches"></div>
+        <button id="apply" class="primary" type="button">選択した項目を入力</button>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
