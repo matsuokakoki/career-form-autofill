@@ -9,6 +9,6 @@
     "check": "node --check autofill-core.js && node --check content-script.js && node --check background.js && node --check options.js && node --check popup.js"
   },
   "devDependencies": {
-    "happy-dom": "^18.0.1"
+    "happy-dom": "^20.14.5"
   }
 }

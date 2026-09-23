@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<title>Career Form Autofill — 架空のデモフォーム</title>
+<style>body{font:16px system-ui;max-width:640px;margin:3rem auto;padding:0 1rem}label{display:block;margin:1rem 0}input,select{display:block;width:100%;padding:.5rem;box-sizing:border-box}small{color:#555}</style>
+<h1>架空の応募フォーム</h1>
+<p>動作確認専用です。送信機能はありません。実在する個人情報を使わずに試してください。</p>
+<form>
+  <label>姓 <input name="family-name" autocomplete="family-name"></label>
+  <label>名 <input name="given-name" autocomplete="given-name"></label>
+  <label>メールアドレス <input type="email" name="email" autocomplete="email"></label>
+  <label>電話番号 <input type="tel" name="phone" autocomplete="tel"></label>
+  <label>大学名 <input name="university" autocomplete="organization"></label>
+  <label>卒業予定年月 <input name="graduation-date" placeholder="例: 2028年3月"></label>
+</form>
+<small>入力結果はこのページを閉じると消えます。</small>
+</html>
