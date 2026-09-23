@@ -28,7 +28,7 @@
 5. `manifest.json` が入っている `career-form-autofill` フォルダを選びます。
 6. 拡張機能一覧の「詳細」→「拡張機能のオプション」でプロフィールを保存します。
 
-実際の応募先を使わずに確認する場合は [`examples/demo-form.html`](examples/demo-form.html) をChromeで開きます。これは架空のフォームで、送信先や送信ボタンはありません。拡張機能が `file://` ページを読み取れるよう、拡張機能の詳細画面で「ファイルのURLへのアクセスを許可」を有効にしてください。スクリーンショットの撮り方は [demo guide](docs/demo.md) に記載しています。
+実際の応募先を使わずに確認する場合は [`examples/demo-form.html`](examples/demo-form.html) をChromeで開きます。これは架空のフォームで、送信先や送信ボタンはありません。拡張機能が `file://` ページを読み取れるよう、拡張機能の詳細画面で「ファイルのURLへのアクセスを許可」を有効にしてください。
 
 ## 使い方
 
@@ -40,10 +40,10 @@
 6. ページ全体を確認してから、自分で送信します。
 
 判定確度が「要確認」の項目は初期状態で選択されません。ページ側が項目名を変更した場合や、独自UIを使っている場合は検出できないことがあります。
-<img width="317" height="216" alt="image" src="https://github.com/user-attachments/assets/b874d7cb-8270-4784-9e9d-068e6efc8724" />
 
 <img width="684" height="458" alt="image" src="https://github.com/user-attachments/assets/0807baee-4fca-49a7-afc6-f011ed90f862" />
 
+<img width="317" height="216" alt="image" src="https://github.com/user-attachments/assets/b874d7cb-8270-4784-9e9d-068e6efc8724" />
 
 ## 判定の仕組み
 
