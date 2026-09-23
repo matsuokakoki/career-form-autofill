@@ -1,5 +1,6 @@
 # Career Form Autofill MVP
 
+A Chrome extension that maps application form fields to saved profile data, shows confidence-scored suggestions, and fills only the fields selected by the user. Rule-based matching is the default, with optional local or cloud model assistance for uncertain fields.
 就活・インターン・留学などの申込フォームを解析し、保存済みプロフィールから入力候補をプレビューして、利用者が選んだ項目だけを反映するChrome拡張機能です。
 
 ## 安全方針
