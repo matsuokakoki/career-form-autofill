@@ -40,6 +40,10 @@
 6. ページ全体を確認してから、自分で送信します。
 
 判定確度が「要確認」の項目は初期状態で選択されません。ページ側が項目名を変更した場合や、独自UIを使っている場合は検出できないことがあります。
+<img width="317" height="216" alt="image" src="https://github.com/user-attachments/assets/b874d7cb-8270-4784-9e9d-068e6efc8724" />
+
+<img width="684" height="458" alt="image" src="https://github.com/user-attachments/assets/0807baee-4fca-49a7-afc6-f011ed90f862" />
+
 
 ## 判定の仕組み
 
