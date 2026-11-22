@@ -9,7 +9,55 @@
   const appleEnabled = document.querySelector("#apple-enabled");
   const importButton = document.querySelector("#import-contact");
   const importStatus = document.querySelector("#import-status");
+  const translateButton = document.querySelector("#translate-profile");
+  const translateStatus = document.querySelector("#translate-status");
   let statusTimer = 0;
+
+  const generatedKana = {};
+  function syncHalfKana(sourceName, targetName) {
+    const source = form.elements.namedItem(sourceName);
+    const target = form.elements.namedItem(targetName);
+    const value = CareerAutofillCore.toHalfWidthKana(source.value.replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60)));
+    if (!target.value || target.value === generatedKana[targetName]) target.value = value;
+    generatedKana[targetName] = value;
+  }
+  function syncAllHalfKana() {
+    syncHalfKana("lastNameKana", "lastNameHalfKana");
+    syncHalfKana("firstNameKana", "firstNameHalfKana");
+  }
+  for (const key of ["lastNameKana", "firstNameKana"]) {
+    form.elements.namedItem(key).addEventListener("input", syncAllHalfKana);
+  }
+
+  translateButton.addEventListener("click", async () => {
+    const mappings = {
+      lastNameLatin: ["lastNameKana", "lastNameKanji"], firstNameLatin: ["firstNameKana", "firstNameKanji"],
+      addressLine1English: ["addressLine1"], addressLine2English: ["addressLine2"], cityEnglish: ["city"],
+      stateProvince: ["prefecture"], universityEnglish: ["university"], facultyEnglish: ["faculty"], departmentEnglish: ["department"]
+    };
+    const fields = {};
+    for (const [target, sources] of Object.entries(mappings)) {
+      if (form.elements.namedItem(target).value.trim()) continue;
+      const value = sources.map((key) => form.elements.namedItem(key).value.trim()).find(Boolean);
+      if (value) fields[target] = value;
+    }
+    if (!Object.keys(fields).length) { translateStatus.textContent = "翻訳できる日本語項目または入力先の空欄がありません。"; return; }
+    translateButton.disabled = true;
+    translateStatus.textContent = "Apple Intelligenceで英語の候補を作成しています…";
+    try {
+      const result = await chrome.runtime.sendNativeMessage("com.career_form_autofill.apple_fm", { action: "translate_profile", fields });
+      if (result?.error) throw new Error(result.error);
+      let count = 0;
+      for (const key of Object.keys(fields)) {
+        const target = form.elements.namedItem(key);
+        const value = result?.translations?.[key];
+        if (!target.value.trim() && mappings[key].map((source) => form.elements.namedItem(source).value.trim()).find(Boolean) === fields[key] && typeof value === "string" && value.trim() && value.length <= 200) { target.value = value.trim(); count++; }
+      }
+      translateStatus.textContent = count ? `${count}項目に候補を入力しました。特に氏名・学校の正式表記を確認し、保存してください。` : "翻訳候補を作れませんでした。";
+    } catch (error) {
+      translateStatus.textContent = `英訳できませんでした。Mac側ブリッジの更新とApple Intelligenceの設定を確認してください: ${error instanceof Error ? error.message : String(error)}`;
+    } finally { translateButton.disabled = false; }
+  });
 
   importButton.addEventListener("click", async () => {
     importButton.disabled = true;
@@ -27,6 +75,7 @@
         control.value = value;
         count++;
       }
+      syncAllHalfKana();
       importStatus.textContent = count ? `${count}項目を入力しました。内容を確認して「プロフィールを保存」を押してください。` : "取り込める空欄がありませんでした。既存の入力は変更していません。";
     } catch (error) {
       importStatus.textContent = `取り込みに失敗しました。Mac側ブリッジを最新版に更新し、アクセス許可を確認してください: ${error instanceof Error ? error.message : String(error)}`;
@@ -51,6 +100,7 @@
       const control = form.elements.namedItem(key);
       if (control) control.value = value;
     }
+    syncAllHalfKana();
     localLlmEnabled.checked = Boolean(localLlm.enabled);
     localLlmEndpoint.value = localLlm.endpoint || localLlmEndpoint.defaultValue;
     localLlmModel.value = localLlm.model || localLlmModel.defaultValue;

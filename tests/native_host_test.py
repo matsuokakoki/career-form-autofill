@@ -60,5 +60,22 @@ class ContactTest(unittest.TestCase):
                 host.read_my_card()
         self.assertEqual(run.call_args.args[0][0], '/usr/bin/osascript')
 
+class TranslationTest(unittest.TestCase):
+    def test_translation_only_expected_keys(self):
+        result = type('Result', (), {'returncode': 0, 'stdout': '{"lastNameLatin":"Yamada","email":"leak"}'})()
+        with patch.object(host.subprocess, 'run', return_value=result):
+            self.assertEqual(host.translate_profile({'lastNameLatin': 'ヤマダ'}), {'lastNameLatin': 'Yamada'})
+
+    def test_invalid_or_japanese_output_rejected(self):
+        result = type('Result', (), {'returncode': 0, 'stdout': '{"lastNameLatin":"山田"}'})()
+        with patch.object(host.subprocess, 'run', return_value=result):
+            with self.assertRaises(ValueError): host.translate_profile({'lastNameLatin': 'ヤマダ'})
+        with self.assertRaises(ValueError): host.translate_profile({'email': 'x'})
+
+    def test_cli_failure_is_reported(self):
+        result = type('Result', (), {'returncode': 69, 'stdout': ''})()
+        with patch.object(host.subprocess, 'run', return_value=result):
+            with self.assertRaisesRegex(RuntimeError, 'Apple Intelligence'): host.translate_profile({'cityEnglish': '名古屋市'})
+
 if __name__ == '__main__':
     unittest.main()
