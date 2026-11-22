@@ -112,3 +112,33 @@ test("携帯番号の3欄には電話番号のみを分割し、住所を入力�
   page.listener()({ type: "CAREER_AUTOFILL_SCAN", profile: { ...profile, phone: "", addressLine1: "青山1-2" } }, null, (r) => { withoutPhone = r; });
   assert.equal(withoutPhone.matches.length, 0);
 });
+
+test('Apple照合がルール判定と異なる場合は自動選択しない要確認にする', async () => {
+  const page = createPage();
+  page.window.document.body.innerHTML = '<form><label>メールアドレス<input id="mail"></label></form>';
+  let scan;
+  page.listener()({ type: 'CAREER_AUTOFILL_SCAN', profile }, null, (r) => { scan = r; });
+  assert.equal(scan.matches[0].fieldKey, 'email');
+  page.window.chrome.runtime.sendMessage = async (message) => {
+    assert.equal(message.fields[0].id, scan.matches[0].id);
+    return { ok: true, used: true, decisions: [{ id: scan.matches[0].id, fieldKey: 'phone' }] };
+  };
+  const result = await new Promise((resolve) => page.listener()({ type: 'CAREER_AUTOFILL_LOCAL_LLM_ENRICH', config: { provider: 'apple' }, timeoutMs: 100 }, null, resolve));
+  assert.equal(result.matches[0].fieldKey, 'email');
+  assert.equal(result.matches[0].confidence.key, 'low');
+  assert.match(result.matches[0].reviewNote, /異なる/);
+  assert.equal(page.window.document.querySelector('#mail').value, '');
+  page.window.close();
+});
+
+test('Apple照合が不明なら元の候補を要確認にする', async () => {
+  const page = createPage();
+  page.window.document.body.innerHTML = '<form><label>メールアドレス<input></label></form>';
+  let scan;
+  page.listener()({ type: 'CAREER_AUTOFILL_SCAN', profile }, null, (r) => { scan = r; });
+  page.window.chrome.runtime.sendMessage = async () => ({ ok: true, used: true, decisions: [{ id: scan.matches[0].id, fieldKey: null }] });
+  const result = await new Promise((resolve) => page.listener()({ type: 'CAREER_AUTOFILL_LOCAL_LLM_ENRICH', config: { provider: 'apple' } }, null, resolve));
+  assert.equal(result.matches[0].confidence.key, 'low');
+  assert.match(result.matches[0].reviewNote, /判断できず/);
+  page.window.close();
+});

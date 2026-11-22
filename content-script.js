@@ -6,6 +6,7 @@
   const ELEMENT_ATTRIBUTE = "data-career-autofill-id";
   const lastScan = new Map();
   const localLlmCandidates = new Map();
+  const appleReviewCandidates = new Map();
   let scannedProfile = {};
   let scannedLanguage = "ja";
   let sequence = 0;
@@ -227,6 +228,7 @@
   function scan(rawProfile, language = "ja") {
     lastScan.clear();
     localLlmCandidates.clear();
+    appleReviewCandidates.clear();
     scannedLanguage = language === "en" ? "en" : "ja";
     const profile = Core.prepareProfile(rawProfile, scannedLanguage);
     scannedProfile = profile;
@@ -240,6 +242,7 @@
       const id = ensureId(control);
       // AI is deliberately limited to fields that the deterministic matcher
       // could not classify at all.  It never revisits a rule-based result.
+      appleReviewCandidates.set(id, { control, signals, baseline: match });
       if (!match) {
         localLlmCandidates.set(id, { control, signals, baseline: match });
       }
@@ -343,6 +346,61 @@
       choices: localLlmChoices(question, inputType, allowedKeys)
     })).filter((field) => field.choices.length >= 2).slice(0, 2);
     return { fields, allowedKeys };
+  }
+
+  function makeAppleReviewFields() {
+    const allowedKeys = Core.DEFINITIONS.filter((definition) => Boolean(Core.fieldValue(definition.key, scannedProfile))).map((definition) => definition.key);
+    const allowed = new Set(allowedKeys);
+    const seen = new Set(), fields = [];
+    for (const [id, candidate] of appleReviewCandidates) {
+      const { control, signals, baseline } = candidate;
+      const question = localLlmQuestion(signals);
+      const normalized = Core.normalize(question);
+      if (!normalized || seen.has(normalized)) continue;
+      const group = localLlmChoices(question, signals.inputType, allowedKeys);
+      const choices = Array.from(new Set([baseline?.key, ...group, "phone", "email", "fullAddress", "fullNameKanji"].filter((key) => allowed.has(key)))).slice(0, 4);
+      if (choices.length < 2 || control.type === "radio") continue;
+      seen.add(normalized);
+      fields.push({ id, question, inputType: signals.inputType, choices });
+      if (fields.length >= 100) break;
+    }
+    return { fields, allowedKeys };
+  }
+
+  function applyAppleReviews(decisions) {
+    const additions = [];
+    for (const decision of decisions || []) {
+      const source = appleReviewCandidates.get(decision.id);
+      if (!source) continue;
+      const question = Core.normalize(localLlmQuestion(source.signals));
+      for (const [id, candidate] of appleReviewCandidates) {
+        if (!question || Core.normalize(localLlmQuestion(candidate.signals)) !== question) continue;
+        const record = lastScan.get(id);
+        if (record) {
+          if (!decision.fieldKey || decision.fieldKey !== record.item.fieldKey) {
+            record.item.score = 45;
+            record.item.confidence = Core.confidence(45);
+            record.item.reviewNote = decision.fieldKey ? "AIと判定が異なるため確認" : "AIが判断できず要確認";
+          } else {
+            record.item.reviewNote = "AI照合済み";
+          }
+        } else if (!candidate.baseline && decision.fieldKey && Core.compatibleField(decision.fieldKey, candidate.signals)) {
+          additions.push({ id, fieldKey: decision.fieldKey });
+        }
+      }
+    }
+    if (additions.length) {
+      addLocalLlmMatches(additions);
+      for (const item of additions) {
+        const record = lastScan.get(item.id);
+        if (record?.item.localLlm) {
+          record.item.score = 45;
+          record.item.confidence = Core.confidence(45);
+          record.item.reviewNote = "AI候補・要確認";
+        }
+      }
+    }
+    return Array.from(lastScan.values(), (record) => record.item).sort((a, b) => b.score - a.score);
   }
 
   function jevLabel(key) {
@@ -487,7 +545,8 @@
         return;
       }
       if (message?.type === "CAREER_AUTOFILL_LOCAL_LLM_ENRICH") {
-        const { fields, allowedKeys } = makeLocalLlmFields();
+        const isApple = message.config?.provider === "apple";
+        const { fields, allowedKeys } = isApple ? makeAppleReviewFields() : makeLocalLlmFields();
         if (!fields.length) {
           sendResponse({ ok: true, matches: Array.from(lastScan.values(), (record) => record.item), used: false, timedOut: false, noCandidates: true });
           return;
@@ -501,8 +560,8 @@
         })
           .then((response) => {
             if (!response?.ok) throw new Error(response?.error || "ローカルLLMの判定に失敗しました。");
-            const matches = response.matches?.length ? addLocalLlmMatches(response.matches) : Array.from(lastScan.values(), (record) => record.item);
-            sendResponse({ ok: true, matches, used: Boolean(response.used), timedOut: Boolean(response.timedOut), noCandidates: false, error: response.error || "" });
+            const matches = isApple && response.decisions?.length ? applyAppleReviews(response.decisions) : response.matches?.length && !isApple ? addLocalLlmMatches(response.matches) : Array.from(lastScan.values(), (record) => record.item);
+            sendResponse({ ok: true, matches, used: Boolean(response.used), timedOut: Boolean(response.timedOut), noCandidates: false, partial: Boolean(response.partial), error: response.error || "" });
           })
           .catch((error) => sendResponse({
             ok: true,

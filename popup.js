@@ -52,7 +52,7 @@
 
       const confidence = document.createElement("span");
       confidence.className = `confidence ${match.confidence.key}`;
-      confidence.textContent = `確度 ${match.confidence.label}`;
+      confidence.textContent = match.reviewNote || `確度 ${match.confidence.label}`;
       confidence.title = `判定スコア: ${match.score}/100`;
 
       row.append(checkbox, main, confidence);
@@ -83,14 +83,14 @@
       let matches = response.matches || [];
       let llmState = apple.enabled ? "no-candidates-local" : jev.enabled ? "no-candidates" : localLlm.enabled ? "no-candidates-local" : "disabled";
       if (apple.enabled || jev.enabled || localLlm.enabled) {
-        const remainingMs = Math.floor((apple.enabled ? 30000 : TOTAL_SCAN_BUDGET_MS) - (performance.now() - scanStartedAt));
+        const remainingMs = Math.floor((apple.enabled ? 57000 : TOTAL_SCAN_BUDGET_MS) - (performance.now() - scanStartedAt));
         if (remainingMs > 0) {
           const usingJev = !apple.enabled && jev.enabled;
-          setStatus(apple.enabled ? "通常の解析後、Apple Intelligenceで未判定の設問を確認しています…" : usingJev ? "通常の解析後、Jevで空欄の設問だけを確認しています…" : "通常の解析後、ローカルLLMで空欄の設問を確認しています…");
+          setStatus(apple.enabled ? "通常の解析後、Apple Intelligenceで設問を照合しています…" : usingJev ? "通常の解析後、Jevで空欄の設問だけを確認しています…" : "通常の解析後、ローカルLLMで空欄の設問を確認しています…");
           const request = chrome.tabs.sendMessage(tab.id, {
             type: usingJev ? "CAREER_AUTOFILL_JEV_ENRICH" : "CAREER_AUTOFILL_LOCAL_LLM_ENRICH",
             config: apple.enabled ? { provider: "apple" } : usingJev ? jev : localLlm,
-            timeoutMs: Math.min(apple.enabled ? 28000 : 2600, remainingMs)
+            timeoutMs: Math.min(apple.enabled ? 55000 : 2600, remainingMs)
           });
           const llmResponse = await Promise.race([
             request,
@@ -102,7 +102,8 @@
             llmState = "failed";
           } else {
             matches = llmResponse.matches || matches;
-            if (llmResponse.used) llmState = usingJev ? "used-jev" : "used-local";
+            if (llmResponse.partial || (llmResponse.used && llmResponse.error)) llmState = "partial";
+            else if (llmResponse.used) llmState = usingJev ? "used-jev" : "used-local";
             else if (llmResponse.timedOut) llmState = "timed-out";
             else if (llmResponse.error) llmState = "failed";
             else if (llmResponse.noCandidates) llmState = "no-candidates";
@@ -116,6 +117,7 @@
       preview.hidden = false;
       const suffixes = {
         "used-jev": "（Jev補助済み）",
+        partial: "（AIは一部のみ照合。内容を確認してください）",
         "used-local": apple.enabled ? "（Apple Intelligence補助済み）" : "（ローカルLLM補助済み）",
         "no-candidates": "（Jev補助対象なし）",
         "no-candidates-local": "（LLM補助対象なし）",

@@ -169,3 +169,16 @@ test('Apple Intelligenceに接続できない場合はルール判定に戻る',
   assert.deepEqual(response.matches, []);
   assert.match(response.error, /host missing/);
 });
+
+test('Apple照合は2件を超えて処理し、判断不能や部分エラーも返す', async () => {
+  chrome.runtime.sendNativeMessage = async (_host, message) => {
+    if (message.question === 'q2') throw new Error('failed');
+    return { answer: message.question === 'q3' ? '' : '電話番号' };
+  };
+  const fields = Array.from({ length: 4 }, (_, i) => ({ id: String(i), question: `q${i}`, choices: ['phone', 'email'] }));
+  const result = await send({ type: 'CAREER_AUTOFILL_LOCAL_LLM_CLASSIFY', config: { provider: 'apple' }, allowedKeys: ['phone', 'email'], fields });
+  assert.equal(result.decisions.length, 3);
+  assert.ok(result.decisions.some((entry) => entry.id === '3' && entry.fieldKey === null));
+  assert.equal(result.partial, true);
+  assert.match(result.error, /failed/);
+});

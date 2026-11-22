@@ -56,14 +56,14 @@
     return JSON.parse((fenced ? fenced[1] : String(text || "")).trim());
   }
 
-  function compactFields(fields) {
+  function compactFields(fields, limit = MAX_FIELDS) {
     const compacted = Array.isArray(fields) ? fields.map((field) => ({
       id: String(field?.id || ""),
       question: String(field?.question || "").replace(/\s+/g, " ").trim().slice(0, 80),
       inputType: String(field?.inputType || "text").slice(0, 12),
       choices: Array.from(new Set(Array.isArray(field?.choices) ? field.choices.filter((key) => ALLOWED_KEYS.has(key)).slice(0, 4) : []))
     })).filter((field) => field.id && field.question && field.choices.length >= 2) : [];
-    return compacted.slice(0, MAX_FIELDS);
+    return compacted.slice(0, limit);
   }
 
   function normalizedAnswer(value) {
@@ -175,27 +175,38 @@
   }
 
   async function classifyApple(fields, allowedKeys, requestedTimeout) {
-    const safeFields = compactFields(fields);
-    if (!safeFields.length) return { matches: [], used: false, noCandidates: true };
+    const safeFields = compactFields(fields, 100);
+    if (!safeFields.length) return { matches: [], decisions: [], used: false, noCandidates: true };
     const allowed = new Set(Array.isArray(allowedKeys) ? allowedKeys : []);
-    const timeout = Math.min(28000, Math.max(1, Number(requestedTimeout) || 28000));
-    const results = await Promise.all(safeFields.map(async (field) => {
-      const labels = field.choices.map((key) => FIELD_LABELS[key]);
-      let timer;
-      let response;
-      try {
-        response = await Promise.race([
-          chrome.runtime.sendNativeMessage("com.career_form_autofill.apple_fm", { question: field.question, choices: labels }),
-          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Apple Intelligence が時間内に応答しませんでした")), timeout); })
-        ]);
-      } finally { clearTimeout(timer); }
-      if (response?.error) throw new Error(response.error);
-      const index = labels.indexOf(response?.answer);
-      const key = field.choices[index];
-      return key && allowed.has(key) ? { id: field.id, fieldKey: key } : null;
-    }));
-    const matches = results.filter(Boolean);
-    return { matches, used: matches.length > 0, timedOut: false };
+    const timeout = Math.min(55000, Math.max(1, Number(requestedTimeout) || 55000));
+    const deadline = Date.now() + timeout;
+    const decisions = [], errors = [];
+    let next = 0, timedOut = false;
+    async function worker() {
+      while (next < safeFields.length) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) { timedOut = true; return; }
+        const field = safeFields[next++];
+        const labels = field.choices.map((key) => FIELD_LABELS[key]);
+        let timer;
+        try {
+          const response = await Promise.race([
+            chrome.runtime.sendNativeMessage("com.career_form_autofill.apple_fm", { question: field.question, choices: labels }),
+            new Promise((_, reject) => { timer = setTimeout(() => { const error = new Error("Apple Intelligence が時間内に応答しませんでした"); error.name = "AbortError"; reject(error); }, remaining); })
+          ]);
+          if (response?.error) throw new Error(response.error);
+          const index = labels.indexOf(response?.answer);
+          const key = field.choices[index];
+          decisions.push({ id: field.id, fieldKey: key && allowed.has(key) ? key : null });
+        } catch (error) {
+          timedOut ||= error?.name === "AbortError";
+          errors.push(error instanceof Error ? error.message : String(error));
+        } finally { clearTimeout(timer); }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(3, safeFields.length) }, () => worker()));
+    const matches = decisions.filter((item) => item.fieldKey);
+    return { matches, decisions, used: decisions.length > 0, timedOut, error: errors[0] || "", partial: decisions.length < safeFields.length };
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
