@@ -2,6 +2,10 @@
   if (globalScope.CareerAutofillCore) return;
 
   const DEFINITIONS = [
+    { key: "facultyDepartment", label: "学部・学科", patterns: ["学部学科", "facultyanddepartment"], exact: ["学部学科", "学部学科名"] },
+    { key: "cityStreet", label: "市区町村＋町名・番地", patterns: ["市区郡番地", "市区町村番地", "市町村番地", "市区町村町名番地"] },
+    { key: "age", label: "満年齢", patterns: ["年齢", "満年齢", "現在の年齢"], exact: ["年齢", "age"] },
+    { key: "occupation", label: "職業", patterns: ["職業", "occupation"], exact: ["職業", "occupation"] },
     { key: "emailConfirm", label: "メールアドレス（確認）", patterns: ["メールアドレス確認", "メール確認", "確認用メール", "メール再入力", "メールアドレス再入力", "メールアドレス再確認", "同じメールアドレス", "emailconfirmation", "confirmemail", "retypeemail", "emailverify"], exact: ["メールアドレス（確認）", "メールアドレス確認"] },
     { key: "email2", label: "メールアドレス2", patterns: ["メールアドレス2", "第二メール", "第2メール", "予備メール", "サブメール", "連絡用メール", "pcメール", "携帯メール", "email2", "mail2", "secondaryemail", "alternateemail"], exact: ["メールアドレス2", "第2メールアドレス"] },
     { key: "email", label: "メールアドレス", patterns: ["メールアドレス", "メール", "e-mail", "email", "mailaddress", "mail"], autocomplete: ["email"], inputTypes: ["email"], negative: ["確認", "confirm", "再入力", "再確認", "2", "第二", "予備", "サブ"] },
@@ -116,14 +120,27 @@
     p.firstNameHalfKana = p.firstNameHalfKana || toHalfWidthKana(p.firstNameKana);
     p.fullNameHalfKana = compact(p.fullNameHalfKana || [p.lastNameHalfKana, p.firstNameHalfKana].filter(Boolean).join(" "));
     p.fullAddress = compact(p.fullAddress || [p.prefecture, p.city, p.addressLine1, p.addressLine2].filter(Boolean).join(language === "en" ? ", " : ""));
+    p.facultyDepartment = [p.faculty, p.department].filter(Boolean).join(language === "en" ? ", " : " ");
+    p.cityStreet = p.city && p.addressLine1 ? [p.city, p.addressLine1].join(language === "en" ? ", " : "") : "";
     p.emailConfirm = p.email;
     if (!p.universityType && /名古屋大学/.test(p.university)) p.universityType = "国立";
     if (!p.universityInitial && /名古屋大学/.test(p.university)) p.universityInitial = "な";
 
     const year = digits(p.birthYear);
-    const month = digits(p.birthMonth).padStart(2, "0");
-    const day = digits(p.birthDay).padStart(2, "0");
-    p.birthDate = p.birthDate || (year && month && day ? `${year}-${month}-${day}` : "");
+    const month = digits(p.birthMonth);
+    const day = digits(p.birthDay);
+    p.birthDate = p.birthDate || (year && month && day ? `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}` : "");
+    p.age = "";
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.birthDate);
+    if (iso) {
+      const [, y, m, d] = iso.map(Number);
+      const birth = new Date(y, m - 1, d);
+      const today = new Date();
+      if (birth <= today && birth.getFullYear() === y && birth.getMonth() + 1 === m && birth.getDate() === d) {
+        const beforeBirthday = today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d);
+        p.age = String(today.getFullYear() - y - Number(beforeBirthday));
+      }
+    }
     p.phoneDigits = digits(p.phone);
     p.phoneParts = splitPhone(p.phone);
     p.postalDigits = digits(p.postalCode);
@@ -147,6 +164,18 @@
 
   function compatibleField(key, signals) {
     const semantic = normalize(signals.label || signals.nearby);
+    const splitLabel = {
+      氏名姓: "lastNameKanji", 氏名名: "firstNameKanji", セイ: "lastNameKana", メイ: "firstNameKana",
+      姓半角カナ: "lastNameHalfKana", 名半角カナ: "firstNameHalfKana",
+      生年月日年: "birthYear", 生年月日月: "birthMonth", 生年月日日: "birthDay"
+    }[normalize(signals.label)];
+    if (splitLabel) return key === splitLabel;
+    if (/年齢|^age(?:required|\*)?$/.test(semantic)) {
+      return key === "age" && !/時点|現在ではなく|年\d|基準日|asof|ondate/.test(semantic);
+    }
+    if (/^(職業|occupation)(必須|required|\*|$)/.test(semantic)) return key === "occupation";
+    if (/マンション|アパート|建物名|部屋番号|apartment/.test(normalize(signals.label))) return key === "addressLine2";
+    if (/市区郡番地|市区町村番地|市町村番地|市区町村町名番地/.test(normalize(signals.label))) return key === "cityStreet";
     const telephone = /電話|携帯番号|携帯の番号|携帯電話|mobilephone|mobilenumber|phonenumber|telephone/.test(semantic);
     return !telephone || key === "phone";
   }
@@ -210,7 +239,7 @@
     // A strong HTML attribute (for example name="tel") must not override an
     // explicit question label that clearly describes another field.
     const semanticText = label || nearby;
-    const addressKeys = new Set(["postalCode", "prefecture", "city", "addressLine1", "addressLine2", "fullAddress"]);
+    const addressKeys = new Set(["postalCode", "prefecture", "city", "cityStreet", "addressLine1", "addressLine2", "fullAddress"]);
     const addressWords = ["住所", "郵便", "都道府県", "市区町村", "町名", "番地", "建物", "マンション", "部屋", "居住地"];
     const educationSubfieldWords = ["学部", "学科", "専攻"];
     if (!addressKeys.has(definition.key) && includesAny(semanticText, addressWords)) {
@@ -233,8 +262,8 @@
     return { score: Math.max(0, Math.min(100, score)), reasons };
   }
 
-  function matchField(signals, rawProfile, minimumScore = 48) {
-    const profile = prepareProfile(rawProfile);
+  function matchField(signals, rawProfile, minimumScore = 48, language = "ja") {
+    const profile = prepareProfile(rawProfile, language);
     let best = null;
     for (const definition of DEFINITIONS) {
       const value = definitionValue(definition, profile);

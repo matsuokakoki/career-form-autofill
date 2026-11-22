@@ -15,7 +15,13 @@
     birthYear: "生年", birthMonth: "生月", birthDay: "生日", birthDate: "生年月日", gender: "性別",
     parentName: "保護者氏名", relationship: "続柄", university: "大学名", faculty: "学部",
     department: "学科専攻", enrollmentYear: "入学年", enrollmentMonth: "入学月",
-    graduationYear: "卒業年", graduationMonth: "卒業月"
+    graduationYear: "卒業年", graduationMonth: "卒業月",
+    facultyDepartment: "学部と学科を結合", cityStreet: "市区町村と町名番地を結合",
+    age: "現在の満年齢", occupation: "職業",
+    birthDateSlash: "生年月日を西暦年/月/日で入力",
+    phoneDigitsOnly: "電話番号を数字だけで入力", postalDigitsOnly: "郵便番号を数字だけで入力",
+    fullNameKanjiNoSpace: "氏名を空白なしで結合", fullNameKanaNoSpace: "全角フリガナを空白なしで結合",
+    fullNameHalfKanaNoSpace: "半角フリガナを空白なしで結合"
   };
   const ALLOWED_KEYS = new Set(Object.keys(FIELD_LABELS));
   const FIELD_ALIASES = {

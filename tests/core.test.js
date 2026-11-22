@@ -79,8 +79,8 @@ test("学部・学科欄へ大学名を割り当てない", () => {
   const match = Core.matchField({ label: "学部・学科", attrs: "school_name", nearby: "", autocomplete: "", inputType: "text" }, {
     ...profile, faculty: "情報学部", department: "情報学科"
   });
-  assert.equal(match.key, "department");
-  assert.equal(match.value, "情報学科");
+  assert.equal(match.key, "facultyDepartment");
+  assert.equal(match.value, "情報学部 情報学科");
 });
 
 test("名古屋大学から国立区分と頭文字を補完する", () => {

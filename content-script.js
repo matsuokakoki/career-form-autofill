@@ -105,10 +105,10 @@
       hint += [" 入学年月年", " 入学年月月"][index] || "";
     } else if ((normalized.includes("卒業年月") || normalized.includes("卒業予定年月")) && peers.length >= 2) {
       hint += [" 卒業予定年月年", " 卒業予定年月月"][index] || "";
-    } else if ((normalized === "氏名" || normalized.includes("氏名漢字")) && peers.length === 2) {
+    } else if ((/^(氏名|お名前)(必須|[＊*])?$/.test(normalized) || normalized.includes("氏名漢字")) && peers.length === 2) {
       hint += [" 氏名姓", " 氏名名"][index] || "";
     } else if ((normalized.includes("フリガナ") || normalized.includes("氏名カナ")) && peers.length === 2) {
-      hint += [" セイ", " メイ"][index] || "";
+      hint += (normalized.includes("半角") ? [" 姓半角カナ", " 名半角カナ"] : [" セイ", " メイ"])[index] || "";
     }
 
     if (control instanceof HTMLSelectElement && !(normalized.includes("生年月日") && peers.length >= 3)) {
@@ -125,11 +125,24 @@
     return hint;
   }
 
+  function precedingQuestion(control) {
+    for (let node = control; node && !node.matches("form, body"); node = node.parentElement) {
+      const previous = node.previousElementSibling;
+      if (!previous || previous.matches("label") || previous.querySelector("input, select, textarea")) continue;
+      const heading = cleanText(previous.innerText, 50);
+      if (/^(お名前|氏名|フリガナ|ふりがな|生年月日|年齢|電話番号|携帯番号|職業)\s*(?:[＊*]|必須)?$/.test(heading)) return heading;
+    }
+    return "";
+  }
+
   function signalsFor(control) {
     const container = contextContainer(control);
+    const heading = precedingQuestion(control);
+    const explicit = explicitLabel(control);
     const nearby = cleanText(container?.innerText || "");
-    const hint = inferHint(control, nearby);
-    const label = cleanText(`${explicitLabel(control)} ${hint}`);
+    const context = heading || explicit || nearby;
+    const hint = inferHint(control, context);
+    const label = cleanText(`${hint || heading || explicit}`);
     const attrs = cleanText([
       control.name,
       control.id,
@@ -157,16 +170,17 @@
     const peers = peerControls(control);
     const index = peers.indexOf(control);
     const maxLength = control instanceof HTMLInputElement ? control.maxLength : -1;
+    const fits = (value) => value && (maxLength <= 0 || value.length <= maxLength) ? value : "";
 
     if (match.key === "phone" && peers.length >= 2 && peers.length <= 4) {
-      return profile.phoneParts[index] ?? "";
+      return profile.phoneParts.length === peers.length ? fits(profile.phoneParts[index]) : "";
     }
     if (match.key === "postalCode" && peers.length === 2) {
-      return profile.postalParts[index] ?? profile.postalDigits;
+      return profile.postalParts.length === peers.length ? fits(profile.postalParts[index]) : "";
     }
-    if (match.key === "phone") return maxLength > 0 && maxLength < profile.phoneDigits.length ? profile.phoneDigits.slice(0, maxLength) : profile.phone;
-    if (match.key === "postalCode") return maxLength > 0 && maxLength < profile.postalDigits.length ? profile.postalDigits.slice(0, maxLength) : profile.postalCode;
-    return match.value;
+    if (match.key === "phone") return maxLength > 0 && maxLength < profile.phoneDigits.length ? fits(profile.phoneDigits) : profile.phone;
+    if (match.key === "postalCode") return maxLength > 0 && maxLength < profile.postalDigits.length ? fits(profile.postalDigits) : profile.postalCode;
+    return fits(match.value);
   }
 
   function radioText(control) {
@@ -238,7 +252,7 @@
 
     for (const control of controls) {
       const signals = signalsFor(control);
-      const match = Core.matchField(signals, profile);
+      const match = Core.matchField(signals, rawProfile, undefined, scannedLanguage);
       const id = ensureId(control);
       // AI is deliberately limited to fields that the deterministic matcher
       // could not classify at all.  It never revisits a rule-based result.
@@ -348,57 +362,75 @@
     return { fields, allowedKeys };
   }
 
+  const appleFormats = {
+    birthDate: ["birthDateSlash", (value) => value.replace(/-/g, "/")],
+    phone: ["phoneDigitsOnly", (value) => value.normalize("NFKC").replace(/[-−ー\s]/g, "")],
+    postalCode: ["postalDigitsOnly", (value) => value.normalize("NFKC").replace(/[-−ー\s]/g, "")],
+    fullNameKanji: ["fullNameKanjiNoSpace", (value) => value.replace(/\s/g, "")],
+    fullNameKana: ["fullNameKanaNoSpace", (value) => value.replace(/\s/g, "")],
+    fullNameHalfKana: ["fullNameHalfKanaNoSpace", (value) => value.replace(/\s/g, "")]
+  };
+
   function makeAppleReviewFields() {
-    const allowedKeys = Core.DEFINITIONS.filter((definition) => Boolean(Core.fieldValue(definition.key, scannedProfile))).map((definition) => definition.key);
-    const allowed = new Set(allowedKeys);
-    const seen = new Set(), fields = [];
+    const allowed = new Set(Core.DEFINITIONS.filter(({ key }) => Boolean(scannedProfile[key])).map(({ key }) => key));
+    const fields = [], formats = new Map();
     for (const [id, candidate] of appleReviewCandidates) {
       const { control, signals, baseline } = candidate;
       const question = localLlmQuestion(signals);
       const normalized = Core.normalize(question);
-      if (!normalized || seen.has(normalized)) continue;
-      const group = localLlmChoices(question, signals.inputType, allowedKeys);
-      const choices = Array.from(new Set([baseline?.key, ...group, "phone", "email", "fullAddress", "fullNameKanji"].filter((key) => allowed.has(key)))).slice(0, 4);
-      if (choices.length < 2 || control.type === "radio") continue;
-      seen.add(normalized);
-      fields.push({ id, question, inputType: signals.inputType, choices });
+      if (!normalized || control.type === "radio") continue;
+      const record = lastScan.get(id);
+      const format = record && control instanceof HTMLInputElement && ["text", "tel", "search"].includes(control.type) && appleFormats[record.item.fieldKey];
+      let formatKey;
+      if (format) {
+        const [key, render] = format;
+        const value = render(record.value);
+        if (value && value !== record.value && (control.maxLength <= 0 || value.length <= control.maxLength)) {
+          formatKey = key;
+          formats.set(id, { key, value });
+        }
+      }
+      const group = localLlmChoices(question, signals.inputType, [...allowed]);
+      const choices = [...new Set([baseline?.key, formatKey, ...group, "phone", "email", "fullAddress", "fullNameKanji"]
+        .filter((key) => key && (key === formatKey || (allowed.has(key) && Core.compatibleField(key, signals)))))].slice(0, 4);
+      const details = [control.placeholder || control.title, control.inputMode, control.maxLength > 0 ? `最大${control.maxLength}文字` : ""];
+      const formatHint = cleanText(details.filter(Boolean).join(" / "), 28);
+      if (choices.length < 2) continue;
+      fields.push({ id, question: formatHint ? `入力例・条件: ${formatHint} / ${question}` : question, inputType: signals.inputType, choices });
       if (fields.length >= 100) break;
     }
-    return { fields, allowedKeys };
+    return { fields, formats, allowedKeys: [...allowed, ...Array.from(formats.values(), ({ key }) => key)] };
   }
 
-  function applyAppleReviews(decisions) {
-    const additions = [];
-    for (const decision of decisions || []) {
-      const source = appleReviewCandidates.get(decision.id);
-      if (!source) continue;
-      const question = Core.normalize(localLlmQuestion(source.signals));
-      for (const [id, candidate] of appleReviewCandidates) {
-        if (!question || Core.normalize(localLlmQuestion(candidate.signals)) !== question) continue;
-        const record = lastScan.get(id);
-        if (record) {
-          if (!decision.fieldKey || decision.fieldKey !== record.item.fieldKey) {
-            record.item.score = 45;
-            record.item.confidence = Core.confidence(45);
-            record.item.reviewNote = decision.fieldKey ? "AIと判定が異なるため確認" : "AIが判断できず要確認";
-          } else {
-            record.item.reviewNote = "AI照合済み";
-          }
-        } else if (!candidate.baseline && decision.fieldKey && Core.compatibleField(decision.fieldKey, candidate.signals)) {
-          additions.push({ id, fieldKey: decision.fieldKey });
-        }
+  function applyAppleReviews(decisions, formats, offered) {
+    for (const { id, fieldKey } of decisions || []) {
+      const candidate = appleReviewCandidates.get(id);
+      if (!candidate || !offered.has(id) || (fieldKey && !offered.get(id).includes(fieldKey))) continue;
+      const { control, signals } = candidate;
+      const record = lastScan.get(id);
+      const format = formats.get(id);
+      let reviewNote;
+      if (record && format && format.key === fieldKey) {
+        record.value = record.item.value = format.value;
+        reviewNote = "AIが入力形式を提案・要確認";
+      } else if (record && fieldKey === record.item.fieldKey) {
+        record.item.reviewNote = "AI照合済み";
+        continue;
+      } else if (record) {
+        reviewNote = fieldKey ? "AIと判定が異なるため確認" : "AIが判断できず要確認";
+      } else if (fieldKey && Core.compatibleField(fieldKey, signals)) {
+        const definition = Core.definitionForKey(fieldKey);
+        if (!definition || !scannedProfile[fieldKey]) continue;
+        const value = segmentedValue(control, { ...definition, value: scannedProfile[fieldKey] }, scannedProfile);
+        if (!value || (control instanceof HTMLSelectElement && resolveSelectValue(control, value) === null)) continue;
+        const item = {
+          id, fieldKey, fieldLabel: definition.label, pageLabel: displayLabel(control, signals, definition),
+          value, score: 45, confidence: Core.confidence(45), reviewNote: "AI候補・要確認"
+        };
+        lastScan.set(id, { control, value, item });
+        continue;
       }
-    }
-    if (additions.length) {
-      addLocalLlmMatches(additions);
-      for (const item of additions) {
-        const record = lastScan.get(item.id);
-        if (record?.item.localLlm) {
-          record.item.score = 45;
-          record.item.confidence = Core.confidence(45);
-          record.item.reviewNote = "AI候補・要確認";
-        }
-      }
+      if (record && reviewNote) Object.assign(record.item, { score: 45, confidence: Core.confidence(45), reviewNote });
     }
     return Array.from(lastScan.values(), (record) => record.item).sort((a, b) => b.score - a.score);
   }
@@ -546,7 +578,7 @@
       }
       if (message?.type === "CAREER_AUTOFILL_LOCAL_LLM_ENRICH") {
         const isApple = message.config?.provider === "apple";
-        const { fields, allowedKeys } = isApple ? makeAppleReviewFields() : makeLocalLlmFields();
+        const { fields, allowedKeys, formats } = isApple ? makeAppleReviewFields() : makeLocalLlmFields();
         if (!fields.length) {
           sendResponse({ ok: true, matches: Array.from(lastScan.values(), (record) => record.item), used: false, timedOut: false, noCandidates: true });
           return;
@@ -560,7 +592,7 @@
         })
           .then((response) => {
             if (!response?.ok) throw new Error(response?.error || "ローカルLLMの判定に失敗しました。");
-            const matches = isApple && response.decisions?.length ? applyAppleReviews(response.decisions) : response.matches?.length && !isApple ? addLocalLlmMatches(response.matches) : Array.from(lastScan.values(), (record) => record.item);
+            const matches = isApple && response.decisions?.length ? applyAppleReviews(response.decisions, formats, new Map(fields.map(({ id, choices }) => [id, choices]))) : response.matches?.length && !isApple ? addLocalLlmMatches(response.matches) : Array.from(lastScan.values(), (record) => record.item);
             sendResponse({ ok: true, matches, used: Boolean(response.used), timedOut: Boolean(response.timedOut), noCandidates: false, partial: Boolean(response.partial), error: response.error || "" });
           })
           .catch((error) => sendResponse({

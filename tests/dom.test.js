@@ -142,3 +142,46 @@ test('Apple照合が不明なら元の候補を要確認にする', async () => 
   assert.match(result.matches[0].reviewNote, /判断できず/);
   page.window.close();
 });
+
+test("見出しが別の段にある姓名・フリガナ・生年月日を分け、住所や職業を混同しない", () => {
+  const page = createPage();
+  page.window.document.body.innerHTML = `<form>
+    <div>お名前 必須</div><div>姓 <input id="a"> 名 <input id="b"></div>
+    <div>フリガナ 必須</div><div>姓 <input id="c"> 名 <input id="d"></div>
+    <div>生年月日 必須</div><div>西暦 <input id="y"> 年 <select id="m"><option>4</option></select> 月 <select id="d2"><option>2</option></select> 日</div>
+    <div>年齢 必須</div><div><input id="age"></div>
+    <div>電話番号 必須</div><div><input id="p1">-<input id="p2">-<input id="p3"></div>
+    <div>職業 必須</div><div><input id="email_for_job"></div>
+    <table><tr><th>学部・学科名</th><td><input id="edu"></td></tr>
+    <tr><th>市区郡番地</th><td><input id="addr"></td></tr>
+    <tr><th>マンション・アパート名</th><td><input id="building" autocomplete="street-address"></td></tr></table>
+    </form>`;
+  let result;
+  const data = { ...profile, lastNameKana: "ヤマダ", firstNameKana: "タロウ", city: "架空市", addressLine1: "中央1-2", faculty: "工学部", department: "情報学科" };
+  page.listener()({ type: "CAREER_AUTOFILL_SCAN", profile: data }, null, (r) => { result = r; });
+  page.listener()({ type: "CAREER_AUTOFILL_APPLY", ids: result.matches.map(({ id }) => id) }, null, () => {});
+  const values = (...ids) => ids.map((id) => page.window.document.getElementById(id).value);
+  assert.deepEqual(values("a", "b", "c", "d"), [profile.lastNameKanji, profile.firstNameKanji, "ヤマダ", "タロウ"]);
+  assert.deepEqual(values("y", "m", "d2", "p1", "p2", "p3"), ["2004", "4", "2", "090", "1234", "5678"]);
+  assert.deepEqual(values("email_for_job", "edu", "addr", "building"), ["", "工学部 情報学科", "架空市中央1-2", ""]);
+  assert.match(values("age")[0], /^\d+$/);
+  page.window.close();
+});
+
+test("Appleは保存値を受け取らず電話の入力形式を選び、選択前には入力しない", async () => {
+  const page = createPage();
+  page.window.document.body.innerHTML = '<form><label>電話番号<input id="tel" placeholder="ハイフンなし"></label></form>';
+  page.listener()({ type: "CAREER_AUTOFILL_SCAN", profile }, null, () => {});
+  page.window.chrome.runtime.sendMessage = async ({ fields }) => {
+    assert.equal(fields.length, 1);
+    assert.match(fields[0].question, /ハイフンなし/);
+    assert.ok(fields[0].choices.includes("phoneDigitsOnly"));
+    assert.ok(!JSON.stringify(fields).includes(profile.phone));
+    return { ok: true, used: true, decisions: [{ id: fields[0].id, fieldKey: "phoneDigitsOnly" }] };
+  };
+  const result = await new Promise((resolve) => page.listener()({ type: "CAREER_AUTOFILL_LOCAL_LLM_ENRICH", config: { provider: "apple" } }, null, resolve));
+  assert.equal(result.matches[0].value, "09012345678");
+  assert.equal(result.matches[0].confidence.key, "low");
+  assert.equal(page.window.document.querySelector("#tel").value, "");
+  page.window.close();
+});
