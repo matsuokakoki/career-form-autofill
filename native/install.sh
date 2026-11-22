@@ -15,7 +15,7 @@ fi
 hostdir="$HOME/Library/Application Support/Career Form Autofill"
 case "${2:-chrome}" in
   chrome) manifestdir="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts" ;;
-  brave) manifestdir="$HOME/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts" ;;
+  brave) manifestdir="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts" ;;
   edge) manifestdir="$HOME/Library/Application Support/Microsoft Edge/NativeMessagingHosts" ;;
   *) echo 'Browser must be chrome, brave, or edge.' >&2; exit 1 ;;
 esac

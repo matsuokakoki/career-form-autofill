@@ -80,7 +80,7 @@ Apple公式の [`fm` CLI](https://developer.apple.com/videos/play/wwdc2026/334/)
 
 通常ルールで未判定の設問から最大2件、設問文（最大80文字）と分類候補だけをローカルのブリッジに渡します。保存されたプロフィール値・フォームの入力値・URLは渡しません。ただし設問文自体に個人情報が含まれる場合はモデルに渡ります。モデルが候補を明確に返さない場合や、接続・規約・時間切れのエラー時はルール判定のみを表示します。AI候補を含む結果は必ずプレビューされ、選択した項目だけを手動で入力します。フォームの送信は行いません。初回や混雑時は最大30秒程度待ちます。
 
-ブリッジはChrome Native Messagingを使い、指定された拡張機能IDだけを許可します。拡張機能IDが変わった場合はインストールを再実行してください。削除するには `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.career_form_autofill.apple_fm.json` と `~/Library/Application Support/Career Form Autofill` を削除します。Apple Intelligenceが有効な場合、既存のJev・ローカルLLM設定より優先されます。
+ブリッジはChrome Native Messagingを使い、指定された拡張機能IDだけを許可します。macOSのBraveはChromeのホスト登録先を使用します。拡張機能IDが変わった場合はインストールを再実行してください。削除するには `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.career_form_autofill.apple_fm.json` と `~/Library/Application Support/Career Form Autofill` を削除します。Apple Intelligenceが有効な場合、既存のJev・ローカルLLM設定より優先されます。
 
 ## ローカルLLMによる補助判定（任意）
 
