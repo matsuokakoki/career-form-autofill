@@ -34,7 +34,7 @@ A Chrome extension that maps application form fields to saved profile data, show
 ## Macの連絡先から初期登録
 
 1. Macの「連絡先」で「カード」→「自分のカードを表示」を選び、氏名や連絡先を確認します。自分のカードが未設定の場合は対象のカードを選択し「カード」→「このカードを自分のカードにする」を選びます。[Appleの説明](https://support.apple.com/guide/contacts/adrb3525ca49/mac)
-2. 上のApple Intelligenceの手順に従ってMac側ブリッジをインストールします。以前インストールした場合も、更新版の `./native/install.sh 拡張機能ID` を再実行し、Chromeで拡張機能を再読み込みしてください。
+2. 上のApple Intelligenceの手順に従ってMac側ブリッジをインストールします。以前インストールした場合も、更新版のインストールコマンド（Braveなら `./native/install.sh 拡張機能ID brave`）を再実行し、Chromeで拡張機能を再読み込みしてください。
 3. 拡張機能のプロフィール設定で「自分の連絡先から取り込む」を押し、macOSの許可を求められたら確認します。連絡先アプリが開く場合があります。
 4. 読み込まれた空欄を確認・修正し、「プロフィールを保存」を押します。入力済みの項目は上書きされず、保存前に画面を閉じれば取り込みは確定しません。
 
@@ -74,7 +74,7 @@ A Chrome extension that maps application form fields to saved profile data, show
 Apple公式の [`fm` CLI](https://developer.apple.com/videos/play/wwdc2026/334/) を使用します。macOS 27に標準搭載され、`fm respond` は既定でオンデバイスモデルを使用します。Jev、Ollama、APIキーやモデルのダウンロードは不要です。Apple Intelligence対応のMacでApple Intelligenceを有効にし、モデルを利用可能にしてください。
 
 1. 上記のChrome導入手順で拡張機能を読み込み、`chrome://extensions` の本拡張機能のID（32文字）をコピーします。
-2. ターミナルで展開したフォルダへ移動し、`./native/install.sh 拡張機能ID` を実行します。Apple Command Line ToolsのPython 3が必要です。求められた場合は `xcode-select --install` で導入してください。
+2. ターミナルで展開したフォルダへ移動し、`./native/install.sh 拡張機能ID` を実行します。Braveの場合は `./native/install.sh 拡張機能ID brave`、Edgeの場合は `./native/install.sh 拡張機能ID edge` を実行します。Apple Command Line ToolsのPython 3が必要です。求められた場合は `xcode-select --install` で導入してください。
 3. `fm respond "こんにちは"` を試します。利用規約への同意が必要と表示された場合は、表示を確認してから管理者が `sudo fm license` で手続きしてください。Apple Intelligenceやモデルが利用できない場合はmacOSの設定を確認してください。
 4. Chromeの拡張機能を再読み込みし、「プロフィール設定」で「Apple Intelligenceを使う」にチェックして保存します。解析時はポップアップを開いたまま待ってください。
 
