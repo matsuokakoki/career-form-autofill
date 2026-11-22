@@ -6,6 +6,7 @@
   const localLlmModel = document.querySelector("#local-llm-model");
   const jevEnabled = document.querySelector("#jev-enabled");
   const jevApiKey = document.querySelector("#jev-api-key");
+  const appleEnabled = document.querySelector("#apple-enabled");
   let statusTimer = 0;
 
   function setOptionStatus(message, clearAfter = 0) {
@@ -20,7 +21,8 @@
   }
 
   async function restore() {
-    const { profile = {}, localLlm = {}, jev = {} } = await chrome.storage.local.get(["profile", "localLlm", "jev"]);
+    const { profile = {}, localLlm = {}, jev = {}, apple = {} } = await chrome.storage.local.get(["profile", "localLlm", "jev", "apple"]);
+    appleEnabled.checked = Boolean(apple.enabled);
     for (const [key, value] of Object.entries(profile)) {
       const control = form.elements.namedItem(key);
       if (control) control.value = value;
@@ -51,7 +53,8 @@
       model: localLlmModel.value.trim()
     };
     const jev = { enabled: jevEnabled.checked, apiKey: jevApiKey.value.trim() };
-    await chrome.storage.local.set({ profile, localLlm, jev });
+    await chrome.storage.local.set({ profile, localLlm, jev, apple: { enabled: appleEnabled.checked } });
+    if (appleEnabled.checked) { setOptionStatus("保存しました。Apple Intelligenceは解析時に使用します。", 3200); return; }
     if (jev.enabled && !jev.apiKey) {
       setOptionStatus("保存しました。Jevを有効にするには API key を入力してください。");
       return;

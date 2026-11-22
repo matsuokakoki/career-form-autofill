@@ -60,6 +60,19 @@ A Chrome extension that maps application form fields to saved profile data, show
 
 判定結果には0〜100のスコアを付け、プレビュー上で「高」「中」「要確認」と表示します。
 
+## Apple Intelligenceによる補助判定（macOS 27）
+
+Apple公式の [`fm` CLI](https://developer.apple.com/videos/play/wwdc2026/334/) を使用します。macOS 27に標準搭載され、`fm respond` は既定でオンデバイスモデルを使用します。Jev、Ollama、APIキーやモデルのダウンロードは不要です。Apple Intelligence対応のMacでApple Intelligenceを有効にし、モデルを利用可能にしてください。
+
+1. 上記のChrome導入手順で拡張機能を読み込み、`chrome://extensions` の本拡張機能のID（32文字）をコピーします。
+2. ターミナルで展開したフォルダへ移動し、`./native/install.sh 拡張機能ID` を実行します。Apple Command Line ToolsのPython 3が必要です。求められた場合は `xcode-select --install` で導入してください。
+3. `fm respond "こんにちは"` を試します。利用規約への同意が必要と表示された場合は、表示を確認してから管理者が `sudo fm license` で手続きしてください。Apple Intelligenceやモデルが利用できない場合はmacOSの設定を確認してください。
+4. Chromeの拡張機能を再読み込みし、「プロフィール設定」で「Apple Intelligenceを使う」にチェックして保存します。解析時はポップアップを開いたまま待ってください。
+
+通常ルールで未判定の設問から最大2件、設問文（最大80文字）と分類候補だけをローカルのブリッジに渡します。保存されたプロフィール値・フォームの入力値・URLは渡しません。ただし設問文自体に個人情報が含まれる場合はモデルに渡ります。モデルが候補を明確に返さない場合や、接続・規約・時間切れのエラー時はルール判定のみを表示します。AI候補を含む結果は必ずプレビューされ、選択した項目だけを手動で入力します。フォームの送信は行いません。初回や混雑時は最大30秒程度待ちます。
+
+ブリッジはChrome Native Messagingを使い、指定された拡張機能IDだけを許可します。拡張機能IDが変わった場合はインストールを再実行してください。削除するには `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.career_form_autofill.apple_fm.json` と `~/Library/Application Support/Career Form Autofill` を削除します。Apple Intelligenceが有効な場合、既存のJev・ローカルLLM設定より優先されます。
+
 ## ローカルLLMによる補助判定（任意）
 
 通常ルールで判定できなかった設問を優先し、任意でローカルLLMに最大2問だけ再判定させられます。各設問は候補を最大4種類に絞った短い質問として並列処理します。これは「すべての言い回し」を固定の辞書に書き切るより、文脈を含む設問（例: 「日中につながる番号」「学校・教育機関の名称」）に強くするための補助です。LLMは2.6秒で打ち切られ、間に合わない場合も通常ルールの結果を3秒以内に表示します。

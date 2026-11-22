@@ -67,7 +67,7 @@
     preview.hidden = true;
     setStatus("フォームを解析しています…");
     try {
-      const { profile = {}, localLlm = {}, jev = {} } = await chrome.storage.local.get(["profile", "localLlm", "jev"]);
+      const { profile = {}, localLlm = {}, jev = {}, apple = {} } = await chrome.storage.local.get(["profile", "localLlm", "jev", "apple"]);
       if (!Object.values(profile).some(Boolean)) {
         setStatus("プロフィールが未設定です。右上の「設定」から保存してください。", "error");
         return;
@@ -81,16 +81,16 @@
       if (!response?.ok) throw new Error(response?.error || "フォームを解析できませんでした。");
 
       let matches = response.matches || [];
-      let llmState = jev.enabled ? "no-candidates" : localLlm.enabled ? "no-candidates-local" : "disabled";
-      if (jev.enabled || localLlm.enabled) {
-        const remainingMs = Math.floor(TOTAL_SCAN_BUDGET_MS - (performance.now() - scanStartedAt));
+      let llmState = apple.enabled ? "no-candidates-local" : jev.enabled ? "no-candidates" : localLlm.enabled ? "no-candidates-local" : "disabled";
+      if (apple.enabled || jev.enabled || localLlm.enabled) {
+        const remainingMs = Math.floor((apple.enabled ? 30000 : TOTAL_SCAN_BUDGET_MS) - (performance.now() - scanStartedAt));
         if (remainingMs > 0) {
-          const usingJev = jev.enabled;
-          setStatus(usingJev ? "通常の解析後、Jevで空欄の設問だけを確認しています…" : "通常の解析後、ローカルLLMで空欄の設問を確認しています…");
+          const usingJev = !apple.enabled && jev.enabled;
+          setStatus(apple.enabled ? "通常の解析後、Apple Intelligenceで未判定の設問を確認しています…" : usingJev ? "通常の解析後、Jevで空欄の設問だけを確認しています…" : "通常の解析後、ローカルLLMで空欄の設問を確認しています…");
           const request = chrome.tabs.sendMessage(tab.id, {
             type: usingJev ? "CAREER_AUTOFILL_JEV_ENRICH" : "CAREER_AUTOFILL_LOCAL_LLM_ENRICH",
-            config: usingJev ? jev : localLlm,
-            timeoutMs: Math.min(2600, remainingMs)
+            config: apple.enabled ? { provider: "apple" } : usingJev ? jev : localLlm,
+            timeoutMs: Math.min(apple.enabled ? 28000 : 2600, remainingMs)
           });
           const llmResponse = await Promise.race([
             request,
@@ -116,7 +116,7 @@
       preview.hidden = false;
       const suffixes = {
         "used-jev": "（Jev補助済み）",
-        "used-local": "（ローカルLLM補助済み）",
+        "used-local": apple.enabled ? "（Apple Intelligence補助済み）" : "（ローカルLLM補助済み）",
         "no-candidates": "（Jev補助対象なし）",
         "no-candidates-local": "（LLM補助対象なし）",
         "not-classified": "（AIは候補を確定できませんでした）",

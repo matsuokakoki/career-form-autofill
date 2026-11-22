@@ -147,3 +147,25 @@ test("Jevには値を含めず、確率とconfidenceが閾値以上の選択だ�
   assert.ok(!JSON.stringify(requestBody).includes("090-"));
   assert.deepEqual(response.matches, [{ id: "a", fieldKey: "phone", probability: 0.91, confidence: 0.82 }]);
 });
+
+test('Apple Intelligenceへ未判定設問と候補だけを渡し、候補外を拒否する', async () => {
+  const calls = [];
+  chrome.runtime.sendNativeMessage = async (host, message) => {
+    calls.push({ host, message });
+    return { answer: calls.length === 1 ? '電話番号' : 'メールアドレスです' };
+  };
+  const response = await send({ type: 'CAREER_AUTOFILL_LOCAL_LLM_CLASSIFY', config: { provider: 'apple' }, allowedKeys: ['phone', 'email'], fields: [
+    { id: 'a', question: '日中につながる番号', choices: ['phone', 'email'] },
+    { id: 'b', question: '連絡先', choices: ['phone', 'email'] }
+  ] });
+  assert.deepEqual(response.matches, [{ id: 'a', fieldKey: 'phone' }]);
+  assert.equal(calls[0].host, 'com.career_form_autofill.apple_fm');
+  assert.deepEqual(Object.keys(calls[0].message).sort(), ['choices', 'question']);
+});
+
+test('Apple Intelligenceに接続できない場合はルール判定に戻る', async () => {
+  chrome.runtime.sendNativeMessage = async () => { throw new Error('host missing'); };
+  const response = await send({ type: 'CAREER_AUTOFILL_LOCAL_LLM_CLASSIFY', config: { provider: 'apple' }, fields: [{ id: 'a', question: '連絡先', choices: ['phone', 'email'] }], allowedKeys: ['phone'] });
+  assert.deepEqual(response.matches, []);
+  assert.match(response.error, /host missing/);
+});

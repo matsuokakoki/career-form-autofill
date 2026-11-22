@@ -174,9 +174,33 @@
     return true;
   }
 
+  async function classifyApple(fields, allowedKeys, requestedTimeout) {
+    const safeFields = compactFields(fields);
+    if (!safeFields.length) return { matches: [], used: false, noCandidates: true };
+    const allowed = new Set(Array.isArray(allowedKeys) ? allowedKeys : []);
+    const timeout = Math.min(28000, Math.max(1, Number(requestedTimeout) || 28000));
+    const results = await Promise.all(safeFields.map(async (field) => {
+      const labels = field.choices.map((key) => FIELD_LABELS[key]);
+      let timer;
+      let response;
+      try {
+        response = await Promise.race([
+          chrome.runtime.sendNativeMessage("com.career_form_autofill.apple_fm", { question: field.question, choices: labels }),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Apple Intelligence が時間内に応答しませんでした")), timeout); })
+        ]);
+      } finally { clearTimeout(timer); }
+      if (response?.error) throw new Error(response.error);
+      const index = labels.indexOf(response?.answer);
+      const key = field.choices[index];
+      return key && allowed.has(key) ? { id: field.id, fieldKey: key } : null;
+    }));
+    const matches = results.filter(Boolean);
+    return { matches, used: matches.length > 0, timedOut: false };
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "CAREER_AUTOFILL_LOCAL_LLM_CLASSIFY") {
-      classify(message.config, message.fields, message.allowedKeys, message.timeoutMs)
+      (message.config?.provider === "apple" ? classifyApple(message.fields, message.allowedKeys, message.timeoutMs) : classify(message.config, message.fields, message.allowedKeys, message.timeoutMs))
         .then((result) => sendResponse({ ok: true, ...result }))
         .catch((error) => {
           const timedOut = error?.name === "AbortError";

@@ -3,7 +3,7 @@
   "name": "Career Form Autofill MVP",
   "version": "0.5.0",
   "description": "就活・留学申込フォームを解析し、確認後に個人情報を入力します。",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "nativeMessaging"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*", "http://[::1]/*", "https://api.typesafe.ai/*"],
   "background": {
     "service_worker": "background.js"
