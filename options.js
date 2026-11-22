@@ -7,7 +7,31 @@
   const jevEnabled = document.querySelector("#jev-enabled");
   const jevApiKey = document.querySelector("#jev-api-key");
   const appleEnabled = document.querySelector("#apple-enabled");
+  const importButton = document.querySelector("#import-contact");
+  const importStatus = document.querySelector("#import-status");
   let statusTimer = 0;
+
+  importButton.addEventListener("click", async () => {
+    importButton.disabled = true;
+    importStatus.textContent = "連絡先を読み込んでいます。許可画面が出たら確認してください…";
+    try {
+      const result = await chrome.runtime.sendNativeMessage("com.career_form_autofill.apple_fm", { action: "read_my_card" });
+      if (result?.error) throw new Error(result.error);
+      const allowed = ["lastNameKanji", "firstNameKanji", "lastNameKana", "firstNameKana", "email", "phone", "postalCode", "prefecture", "city", "addressLine1", "birthYear", "birthMonth", "birthDay"];
+      let count = 0;
+      for (const key of allowed) {
+        const control = form.elements.namedItem(key);
+        let value = result?.profile?.[key];
+        if (!control || control.value.trim() || typeof value !== "string" || !value.trim()) continue;
+        if (key.endsWith("Kana")) value = value.replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+        control.value = value;
+        count++;
+      }
+      importStatus.textContent = count ? `${count}項目を入力しました。内容を確認して「プロフィールを保存」を押してください。` : "取り込める空欄がありませんでした。既存の入力は変更していません。";
+    } catch (error) {
+      importStatus.textContent = `取り込みに失敗しました。Mac側ブリッジを最新版に更新し、アクセス許可を確認してください: ${error instanceof Error ? error.message : String(error)}`;
+    } finally { importButton.disabled = false; }
+  });
 
   function setOptionStatus(message, clearAfter = 0) {
     window.clearTimeout(statusTimer);

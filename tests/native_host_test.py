@@ -35,5 +35,30 @@ class HostTest(unittest.TestCase):
     def test_cli_error(self):
         self.assertIn('exit 69', self.invoke('', 69)['error'])
 
+class ContactTest(unittest.TestCase):
+    def test_vcard_fields(self):
+        card = ('BEGIN:VCARD\r\nVERSION:3.0\r\nN:山田;太郎;;;\r\n'
+                'X-PHONETIC-LAST-NAME:やまだ\r\nX-PHONETIC-FIRST-NAME:たろう\r\n'
+                'EMAIL;TYPE=HOME:test@example.test\r\nTEL;TYPE=CELL:09012345678\r\n'
+                'ADR;TYPE=HOME:;;町1-2;名古屋市;愛知県;123-4567;日本\r\n'
+                'BDAY:2000-04-02\r\nEND:VCARD\r\n')
+        profile = host.parse_vcard(card)
+        self.assertEqual(profile['lastNameKanji'], '山田')
+        self.assertEqual(profile['lastNameKana'], 'やまだ')
+        self.assertEqual(profile['email'], 'test@example.test')
+        self.assertEqual(profile['city'], '名古屋市')
+        self.assertEqual(profile['birthDay'], '2')
+        self.assertNotIn('university', profile)
+
+    def test_missing_and_invalid_birthday(self):
+        self.assertEqual(host.parse_vcard('BEGIN:VCARD\nBDAY:2000-02-30\nEND:VCARD'), {})
+
+    def test_read_card_uses_contacts_and_returns_error_on_denial(self):
+        result = type('Result', (), {'stdout': '', 'returncode': 1})()
+        with patch.object(host.subprocess, 'run', return_value=result) as run:
+            with self.assertRaisesRegex(RuntimeError, 'アクセス許可'):
+                host.read_my_card()
+        self.assertEqual(run.call_args.args[0][0], '/usr/bin/osascript')
+
 if __name__ == '__main__':
     unittest.main()
