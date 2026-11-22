@@ -15,12 +15,12 @@
     { key: "firstNameKanji", label: "名（漢字）", patterns: ["氏名名", "お名前名", "下の名前", "givenname", "firstname", "forename"], exact: ["名", "名（漢字）"], autocomplete: ["given-name"] },
     { key: "fullNameKanji", label: "氏名（漢字）", patterns: ["氏名", "お名前", "氏名漢字", "申込者名", "応募者名", "本人氏名", "受験者名", "fullname", "yourname", "applicantname"], exact: ["氏名", "お名前", "名前"], autocomplete: ["name"], negative: ["保護者", "親", "カナ", "かな", "フリガナ", "ふりがな", "ヨミ"] },
 
-    { key: "phone", label: "電話番号", patterns: ["携帯電話", "電話番号", "電話", "連絡先電話", "緊急連絡先", "mobilephone", "phonenumber", "telephone", "tel", "mobile"], autocomplete: ["tel", "tel-national"], inputTypes: ["tel"] },
+    { key: "phone", label: "電話番号", patterns: ["携帯電話", "携帯番号", "携帯の番号", "電話番号", "電話", "連絡先電話", "緊急連絡先", "mobilephone", "phonenumber", "telephone", "tel", "mobile"], autocomplete: ["tel", "tel-national"], inputTypes: ["tel"] },
     { key: "postalCode", label: "郵便番号", patterns: ["郵便番号", "郵便", "postalcode", "postcode", "zipcode", "zip"], autocomplete: ["postal-code"] },
     { key: "prefecture", label: "都道府県", patterns: ["都道府県", "都道府県名", "prefecture", "addresslevel1", "province", "state"], autocomplete: ["address-level1"] },
     { key: "city", label: "市区町村", patterns: ["市区町村", "市町村", "区市町村", "市郡", "自治体", "municipality", "addresslevel2", "city", "ward"], autocomplete: ["address-level2"] },
     { key: "addressLine2", label: "建物名・部屋番号", patterns: ["建物名", "マンション名", "アパート名", "部屋番号", "号室", "住所2", "住所第二", "addressline2", "building", "apartment", "unit"], autocomplete: ["address-line2"] },
-    { key: "addressLine1", label: "町名・番地", patterns: ["町名番地", "町域番地", "町名", "番地", "番", "住所1", "住所第一", "addressline1", "streetaddress", "street"], autocomplete: ["address-line1"], negative: ["建物", "マンション", "アパート", "部屋", "号室"] },
+    { key: "addressLine1", label: "町名・番地", patterns: ["町名番地", "町域番地", "町名", "番地", "住所1", "住所第一", "addressline1", "streetaddress", "street"], autocomplete: ["address-line1"], negative: ["建物", "マンション", "アパート", "部屋", "号室"] },
     { key: "fullAddress", label: "住所", patterns: ["現住所", "自宅住所", "居住地", "住所", "fulladdress", "homeaddress", "residentialaddress"], exact: ["住所", "現住所"], autocomplete: ["street-address"], negative: ["郵便", "都道府県", "市区町村", "建物", "番地", "町名", "部屋"] },
 
     { key: "birthYear", label: "生年", patterns: ["生年月日年", "生年", "birthyear", "birthdayyear", "dobyear"], exact: ["年（生年月日）"] },
@@ -145,7 +145,14 @@
     return String(value ?? "").toLowerCase().split(/\s+/).map(normalize).filter(Boolean);
   }
 
+  function compatibleField(key, signals) {
+    const semantic = normalize(signals.label || signals.nearby);
+    const telephone = /電話|携帯番号|携帯の番号|携帯電話|mobilephone|mobilenumber|phonenumber|telephone/.test(semantic);
+    return !telephone || key === "phone";
+  }
+
   function scoreDefinition(definition, signals) {
+    if (!compatibleField(definition.key, signals)) return { score: 0, reasons: ["電話番号欄と矛盾"] };
     const label = normalize(signals.label);
     const attrs = normalize(signals.attrs);
     const nearby = normalize(signals.nearby);
@@ -265,6 +272,7 @@
     prepareProfile,
     autocompleteTokens,
     scoreDefinition,
+    compatibleField,
     matchField,
     definitionForKey,
     fieldValue,

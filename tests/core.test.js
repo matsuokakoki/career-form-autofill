@@ -97,3 +97,12 @@ test("Englishモードでは英語プロフィールを共通の意味キーへ�
   assert.equal(profile.fullAddress, "MA, Boston, 1 Main St");
   assert.equal(profile.fullNameKana, "");
 });
+
+
+test("携帯番号を住所の番地と誤認せず、電話未設定なら候補にしない", () => {
+  const signals = { label: "携帯番号", attrs: "", nearby: "", inputType: "text" };
+  const data = { ...profile, addressLine1: "青山1-2", phone: "090-1234-5678" };
+  assert.equal(Core.matchField(signals, data).key, "phone");
+  assert.equal(Core.matchField(signals, { ...data, phone: "" }), null);
+  assert.equal(Core.compatibleField("addressLine1", signals), false);
+});

@@ -95,3 +95,20 @@ test("DOMを解析し、プレビュー後に分割欄と選択欄へ入力す�
   assert.equal(document.querySelector("#birth-day").value, "2日");
   assert.equal(document.querySelector("input[value='male']").checked, true);
 });
+
+
+test("携帯番号の3欄には電話番号のみを分割し、住所を入力しない", () => {
+  const page = createPage();
+  page.window.document.body.innerHTML = `<table><tr><th>携帯番号<span>必須</span></th><td><input id="a" maxlength="3"> - <input id="b" maxlength="4"> - <input id="c" maxlength="4"></td></tr></table>`;
+  let scan;
+  page.listener()({ type: "CAREER_AUTOFILL_SCAN", profile: { ...profile, addressLine1: "青山1-2" } }, null, (r) => { scan = r; });
+  assert.equal(scan.matches.length, 3);
+  assert.ok(scan.matches.every((m) => m.fieldKey === "phone"));
+  assert.deepEqual(Array.from(scan.matches, (m) => m.value), ["090", "1234", "5678"]);
+  assert.deepEqual(["a", "b", "c"].map((id) => page.window.document.getElementById(id).value), ["", "", ""]);
+  page.listener()({ type: "CAREER_AUTOFILL_APPLY", ids: scan.matches.map((m) => m.id) }, null, () => {});
+  assert.deepEqual(["a", "b", "c"].map((id) => page.window.document.getElementById(id).value), ["090", "1234", "5678"]);
+  let withoutPhone;
+  page.listener()({ type: "CAREER_AUTOFILL_SCAN", profile: { ...profile, phone: "", addressLine1: "青山1-2" } }, null, (r) => { withoutPhone = r; });
+  assert.equal(withoutPhone.matches.length, 0);
+});

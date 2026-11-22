@@ -158,7 +158,7 @@
     const maxLength = control instanceof HTMLInputElement ? control.maxLength : -1;
 
     if (match.key === "phone" && peers.length >= 2 && peers.length <= 4) {
-      return profile.phoneParts[index] ?? (maxLength > 0 ? profile.phoneDigits.slice(0, maxLength) : profile.phoneDigits);
+      return profile.phoneParts[index] ?? "";
     }
     if (match.key === "postalCode" && peers.length === 2) {
       return profile.postalParts[index] ?? profile.postalDigits;
@@ -410,7 +410,7 @@
       const candidate = localLlmCandidates.get(classification.id);
       const definition = Core.definitionForKey(classification.fieldKey);
       const value = definition ? Core.fieldValue(definition.key, scannedProfile) : "";
-      if (!candidate || !definition || !value) continue;
+      if (!candidate || !definition || !value || !Core.compatibleField(definition.key, candidate.signals)) continue;
       const { control, signals, baseline } = candidate;
       if (baseline) continue;
 
